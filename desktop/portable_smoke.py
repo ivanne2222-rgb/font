@@ -45,7 +45,25 @@ def run(source, result_path, editor_class):
                 assert font['name'].getDebugName(1) == 'Portable Smoke Test'
                 assert font['hmtx']['A'] == (740,125)
                 assert font['glyf']['A'].coordinates[0] == (125,10)
-        result = {'status':'passed','checks':['GUI startup','canvas rendering','point selection','point drag','rename','metrics','coordinate edit','TTF save and reload']}
+        def fail_on_dialog(error):
+            raise AssertionError(str(error))
+        editor.error = fail_on_dialog
+        prior = editor.doc.state()
+        editor.thin_strength.set('0.4')
+        report = editor.apply_thinning()
+        assert report and report['changed'] == 2, 'Whole-font thinning did not process all visible glyphs'
+        assert editor.doc.glyph('A')['advance'] == 740
+        assert not editor.doc.glyph('Aacute')['composite'], 'Composite was not thinned independently'
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory)/'thin.ttf'
+            editor.doc.save(destination)
+            with TTFont(destination, checkChecksums=2) as font:
+                font.ensureDecompiled()
+                assert font['hmtx']['A'][0] == 740
+                assert font['glyf']['A'].numberOfContours > 0
+        editor.undo()
+        assert editor.doc.state() == prior, 'Bulk undo did not restore pre-thinning state'
+        result = {'status':'passed','version':'1.1.0','checks':['GUI startup','canvas rendering','point selection','point drag','rename','metrics','coordinate edit','TTF save and reload','whole-font thinning','thinned TTF reload','bulk undo']}
         code = 0
     except Exception as error:
         result = {'status':'failed','error':repr(error)}

@@ -100,6 +100,14 @@ class FontDocument:
             self.checkpoint()
             del self.edits[name]
 
+    def thin_all(self, percent, progress=None):
+        from thinning import thin_outlines
+        changes, report = thin_outlines(self.build_font(), percent, progress)
+        if changes:
+            self.checkpoint()
+            self.edits.update(changes)
+        return report
+
     def build_font(self):
         font = TTFont(BytesIO(self.original), recalcTimestamp=False)
         if (self.family, self.style) != self.original_names:
@@ -114,15 +122,27 @@ class FontDocument:
         for name, change in self.edits.items():
             width, lsb = font['hmtx'][name]
             font['hmtx'][name] = (change.get('advance', width), change.get('lsb', lsb))
+            if 'tsb' in change and 'vmtx' in font:
+                font['vmtx'][name] = (font['vmtx'][name][0], change['tsb'])
             if 'points' in change:
-                glyph = font['glyf'][name]
-                coords, _, _ = glyph.getCoordinates(font['glyf'])
-                for i, point in enumerate(change['points']):
-                    coords[i] = (point[0], point[1])
-                glyph.coordinates = coords
+                if 'ends' in change:
+                    from thinning import outline_glyph
+                    glyph = outline_glyph(change)
+                    font['glyf'][name] = glyph
+                else:
+                    glyph = font['glyf'][name]
+                    coords, _, _ = glyph.getCoordinates(font['glyf'])
+                    for i, point in enumerate(change['points']):
+                        coords[i] = (point[0], point[1])
+                    glyph.coordinates = coords
                 glyph.program = Program()
                 glyph.program.fromBytecode([])
                 glyph.recalcBounds(font['glyf'])
+        if any('ends' in change for change in self.edits.values()):
+            # Cached device widths and bounding boxes are stale after global outline changes.
+            for tag in ('hdmx', 'LTSH', 'VDMX'):
+                if tag in font:
+                    del font[tag]
         if 'DSIG' in font:
             del font['DSIG']
         return font

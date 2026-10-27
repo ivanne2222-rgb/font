@@ -56,6 +56,7 @@ class Editor:
         self.selected = None
         self.glyph = None
         self.dragging = False
+        self.processing = False
         self.view = None
         self.display_names = []
         root.title('글결 · TTF 편집기')
@@ -72,6 +73,7 @@ class Editor:
         self.width = tk.StringVar(); self.lsb = tk.StringVar()
         self.px = tk.StringVar(); self.py = tk.StringVar()
         self.search = tk.StringVar(); self.zoom = tk.DoubleVar(value=1)
+        self.thin_strength = tk.StringVar(value='1.0')
         self.preview_text = tk.StringVar(value='가나다라마바사 Aa Bb 0123456789')
         self.status = tk.StringVar(value='TTF 파일을 열어 시작하세요. 모든 처리는 이 PC에서 이루어집니다.')
         header = ttk.Frame(root, padding=(22,16)); header.pack(fill='x')
@@ -86,6 +88,12 @@ class Editor:
         self.entry(left,'글꼴 이름',self.family)
         self.entry(left,'스타일',self.style_name)
         ttk.Button(left,text='이름 적용',command=self.apply_names).pack(fill='x',pady=8)
+        bulk = ttk.LabelFrame(left, text='글꼴 전체 · 획 얇게 만들기', padding=8)
+        bulk.pack(fill='x', pady=(4, 10))
+        ttk.Label(bulk, text='획 감소량 (% EM)').pack(anchor='w')
+        ttk.Spinbox(bulk, from_=0.1, to=5.0, increment=0.1, textvariable=self.thin_strength, width=12).pack(fill='x', pady=4)
+        ttk.Label(bulk, text='1% = 1000 UPM에서 획폭 약 10 감소\n모든 글자에 적용 · 글자 폭 유지', wraplength=220).pack(anchor='w')
+        ttk.Button(bulk, text='전체 글자에 얇게 적용', command=self.apply_thinning).pack(fill='x', pady=(6, 0))
         self.info = ttk.Label(left,text='파일을 열어주세요.',wraplength=225);self.info.pack(anchor='w',pady=12)
         ttk.Label(left,text='글자 검색 · 이름 / 문자 / U+0041').pack(anchor='w')
         ttk.Entry(left,textvariable=self.search).pack(fill='x',pady=6)
@@ -183,6 +191,42 @@ class Editor:
 
     def update_title(self):
         if self.doc:self.root.title(f'{"* " if self.doc.dirty or self.has_pending_names() else ""}{self.doc.family} · 글결 TTF 편집기')
+
+    def apply_thinning(self):
+        if not self.doc or self.processing:return
+        dialog = tk.Toplevel(self.root)
+        dialog.title('글꼴 전체 얇게 만들기')
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        cancelled = [False]
+        label = ttk.Label(dialog, text='윤곽을 준비하고 있습니다…', width=55, padding=15)
+        label.pack()
+        bar = ttk.Progressbar(dialog, length=370, maximum=100)
+        bar.pack(padx=15, pady=5)
+        def cancel():
+            cancelled[0] = True
+            label.configure(text='취소 중입니다. 현재 글자 처리가 끝나면 중단합니다.')
+        ttk.Button(dialog, text='취소', command=cancel).pack(pady=12)
+        dialog.protocol('WM_DELETE_WINDOW', cancel)
+        self.processing = True
+        def progress(done, total, name):
+            bar['value'] = done / max(total, 1) * 100
+            label.configure(text=f'{done:,} / {total:,} 글리프 · {name}')
+            dialog.update()
+            return not cancelled[0]
+        try:
+            report = self.doc.thin_all(self.thin_strength.get(), progress)
+            self.selected = None
+            self.refresh()
+            self.status.set(f"전체 얇게 적용: {report['changed']:,}개 글리프 · 획 감소 {report['percent']:g}% EM · 빈 글자 {report['empty']:,}개 유지. 실행 취소로 전체를 한 번에 되돌릴 수 있습니다.")
+            return report
+        except Exception as error:
+            if not cancelled[0]:self.error(error)
+            else:self.status.set(str(error))
+        finally:
+            self.processing = False
+            dialog.destroy()
 
     def apply_names(self):
         if not self.doc:return
@@ -296,6 +340,7 @@ class Editor:
         except Exception as e:self.error(e)
 
     def close(self):
+        if self.processing:return
         if self.confirm_discard():self.root.destroy()
 
 

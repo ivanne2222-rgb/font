@@ -19,7 +19,7 @@ python -m venv .venv-desktop
 :checkvenv
 if not exist ".venv-desktop\Scripts\python.exe" goto failed
 :dependencies
-".venv-desktop\Scripts\python.exe" -c "import tkinter, fontTools; assert fontTools.__version__ == '4.60.1'" >nul 2>&1
+".venv-desktop\Scripts\python.exe" -c "import tkinter, fontTools, pathops; assert fontTools.__version__ == '4.60.1'" >nul 2>&1
 if not errorlevel 1 goto run
 ".venv-desktop\Scripts\python.exe" -m pip install -r requirements.txt
 if errorlevel 1 goto failed
