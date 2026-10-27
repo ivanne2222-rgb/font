@@ -303,7 +303,11 @@ def main():
     if sys.platform=='win32':
         try:ctypes.windll.shcore.SetProcessDpiAwareness(1)
         except Exception:pass
+    if len(sys.argv) == 4 and sys.argv[1] == '--smoke-test':
+        from portable_smoke import run
+        return run(sys.argv[2], sys.argv[3], Editor)
     root=tk.Tk();Editor(root);root.mainloop()
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':
+    sys.exit(main() or 0)
