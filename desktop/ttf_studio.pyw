@@ -93,6 +93,7 @@ class Editor:
         ttk.Label(bulk, text='획 감소량 (% EM)').pack(anchor='w')
         ttk.Spinbox(bulk, from_=0.1, to=5.0, increment=0.1, textvariable=self.thin_strength, width=12).pack(fill='x', pady=4)
         ttk.Label(bulk, text='1% = 1000 UPM에서 획폭 약 10 감소\n모든 글자에 적용 · 글자 폭 유지', wraplength=220).pack(anchor='w')
+        ttk.Button(bulk, text='형태 유지 · 전후 비교', command=self.preview_thinning).pack(fill='x', pady=(6, 0))
         ttk.Button(bulk, text='전체 글자에 얇게 적용', command=self.apply_thinning).pack(fill='x', pady=(6, 0))
         self.info = ttk.Label(left,text='파일을 열어주세요.',wraplength=225);self.info.pack(anchor='w',pady=12)
         ttk.Label(left,text='글자 검색 · 이름 / 문자 / U+0041').pack(anchor='w')
@@ -191,6 +192,59 @@ class Editor:
 
     def update_title(self):
         if self.doc:self.root.title(f'{"* " if self.doc.dirty or self.has_pending_names() else ""}{self.doc.family} · 글결 TTF 편집기')
+
+    def preview_thinning(self):
+        if not self.doc or not self.current or self.processing:return
+        from thinning import preview_thin
+        from rendering import draw_filled_glyph
+        try:
+            before = self.doc.build_font()
+            after, _ = preview_thin(before, self.current, self.thin_strength.get())
+        except Exception as error:
+            self.error(error)
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title('형태 유지 · 획만 가늘게 — 전후 비교')
+        dialog.geometry('900x560')
+        dialog.minsize(700, 470)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        ttk.Label(dialog, text=f'{self.current} · 원래 글자의 특징을 유지하고 획만 가늘게', font=('맑은 고딕', 12, 'bold'), padding=12).pack(anchor='w')
+        ttk.Label(dialog, text='둥근 모서리와 평평한 꼭대기를 각진 형태로 바꾸지 않습니다. 아직 문서에는 적용되지 않았습니다.', padding=(12,0)).pack(anchor='w')
+        views = ttk.Frame(dialog, padding=12)
+        views.pack(fill='both', expand=True)
+        canvases = []
+        for title in ('적용 전', '얇게 만든 후'):
+            frame = ttk.LabelFrame(views, text=title, padding=6)
+            frame.pack(side='left', fill='both', expand=True, padx=4)
+            canvas = tk.Canvas(frame, bg='#fbfcf9', highlightthickness=0, width=390, height=330)
+            canvas.pack(fill='both', expand=True)
+            canvases.append(canvas)
+        strength = tk.StringVar(value=self.thin_strength.get())
+        settings = ttk.Frame(dialog, padding=12)
+        settings.pack(fill='x')
+        ttk.Label(settings, text='획 감소량 (% EM)').pack(side='left')
+        ttk.Spinbox(settings, from_=0.1, to=5, increment=0.1, textvariable=strength, width=7).pack(side='left', padx=8)
+        preview_fonts = [before, after]
+        def redraw(event=None):
+            for canvas, font in zip(canvases, preview_fonts):
+                draw_filled_glyph(canvas, font, self.current, CanvasPen)
+        def refresh_comparison():
+            try:
+                preview_fonts[1], _ = preview_thin(before, self.current, strength.get())
+                redraw()
+            except Exception as error:self.error(error)
+        def apply_all():
+            self.thin_strength.set(strength.get())
+            dialog.destroy()
+            self.apply_thinning()
+        ttk.Button(settings, text='비교 갱신', command=refresh_comparison).pack(side='left')
+        ttk.Button(settings, text='이 강도로 전체 글꼴 적용', command=apply_all, style='Accent.TButton').pack(side='right')
+        ttk.Button(settings, text='적용하지 않고 닫기', command=dialog.destroy).pack(side='right', padx=6)
+        for canvas in canvases:canvas.bind('<Configure>', redraw)
+        dialog.update_idletasks()
+        redraw()
+        return dialog
 
     def apply_thinning(self):
         if not self.doc or self.processing:return

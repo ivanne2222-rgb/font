@@ -20,7 +20,7 @@ def outline_glyph(change):
     return glyph
 
 
-def thin_outlines(font, percent, progress=None):
+def thin_outlines(font, percent, progress=None, names=None):
     try:
         percent = float(percent)
     except (ValueError, TypeError):
@@ -30,7 +30,7 @@ def thin_outlines(font, percent, progress=None):
     units = font['head'].unitsPerEm
     distance = units * percent / 200
     glyphset = font.getGlyphSet()
-    names = font.getGlyphOrder()
+    names = font.getGlyphOrder() if names is None else list(names)
     changes = {}
     erased = []
     empty = 0
@@ -84,3 +84,21 @@ def thin_outlines(font, percent, progress=None):
     if progress and progress(len(names),len(names),'완료') is False:
         raise ValueError('전체 얇게 만들기를 취소했습니다. 변경 사항은 적용되지 않았습니다.')
     return changes, dict(changed=len(changes), empty=empty, percent=percent, inset=distance)
+
+
+def preview_thin(font, name, percent):
+    """Return a separate edited font for comparison; never apply changes to the document."""
+    from io import BytesIO
+    from fontTools.ttLib import TTFont
+    stream = BytesIO()
+    font.save(stream)
+    preview = TTFont(BytesIO(stream.getvalue()), recalcTimestamp=False)
+    changes, report = thin_outlines(preview, percent, names=[name])
+    for glyph_name, change in changes.items():
+        glyph = outline_glyph(change)
+        preview['glyf'][glyph_name] = glyph
+        glyph.recalcBounds(preview['glyf'])
+        preview['hmtx'][glyph_name] = (change['advance'], change['lsb'])
+        if 'tsb' in change and 'vmtx' in preview:
+            preview['vmtx'][glyph_name] = (preview['vmtx'][glyph_name][0], change['tsb'])
+    return preview, report

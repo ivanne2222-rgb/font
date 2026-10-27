@@ -50,8 +50,20 @@ def run(source, result_path, editor_class):
         editor.error = fail_on_dialog
         prior = editor.doc.state()
         editor.thin_strength.set('0.4')
-        report = editor.apply_thinning()
-        assert report and report['changed'] == 2, 'Whole-font thinning did not process all visible glyphs'
+        comparison = editor.preview_thinning()
+        root.update()
+        assert comparison is not None, 'Comparison window did not open'
+        def descendants(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from descendants(child)
+        previews = [child for child in descendants(comparison) if isinstance(child, tk.Canvas)]
+        assert len(previews) == 2 and all(canvas.find_all() for canvas in previews), 'Before/after preview did not render'
+        assert editor.doc.state() == prior, 'Preview unexpectedly changed the document'
+        apply_button = next(child for child in descendants(comparison) if child.winfo_class() == 'TButton' and str(child.cget('text')) == '이 강도로 전체 글꼴 적용')
+        apply_button.invoke()
+        root.update()
+        assert len([e for e in editor.doc.edits.values() if 'ends' in e]) == 2, 'Whole-font application from preview failed'
         assert editor.doc.glyph('A')['advance'] == 740
         assert not editor.doc.glyph('Aacute')['composite'], 'Composite was not thinned independently'
         with tempfile.TemporaryDirectory() as directory:
@@ -63,7 +75,7 @@ def run(source, result_path, editor_class):
                 assert font['glyf']['A'].numberOfContours > 0
         editor.undo()
         assert editor.doc.state() == prior, 'Bulk undo did not restore pre-thinning state'
-        result = {'status':'passed','version':'1.1.0','checks':['GUI startup','canvas rendering','point selection','point drag','rename','metrics','coordinate edit','TTF save and reload','whole-font thinning','thinned TTF reload','bulk undo']}
+        result = {'status':'passed','version':'1.2.0','checks':['GUI startup','canvas rendering','point selection','point drag','rename','metrics','coordinate edit','TTF save and reload','whole-font thinning','thinned TTF reload','bulk undo','filled before-after preview','apply preview strength to entire font']}
         code = 0
     except Exception as error:
         result = {'status':'failed','error':repr(error)}

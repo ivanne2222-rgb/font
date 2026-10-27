@@ -7,7 +7,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 root = Path(__file__).resolve().parent
 exe = root/'dist'/'TTFStudio.exe'
 result = json.loads((root/'portable-smoke-result.json').read_text(encoding='utf-8'))
-if result.get('status') != 'passed' or 'whole-font thinning' not in result.get('checks',[]):
+if result.get('status') != 'passed' or 'filled before-after preview' not in result.get('checks',[]):
     raise SystemExit('Executable smoke test did not pass')
 if exe.read_bytes()[:2] != b'MZ':
     raise SystemExit('Not a Windows executable')
@@ -24,7 +24,9 @@ Python 설치, 패키지 설치, 인터넷 연결이 필요하지 않습니다.
 Windows 10/11 64비트용입니다. 첫 실행에는 임시 폴더에 런타임을 푸는 시간이 걸릴 수 있습니다.
 간격과 좌표는 '간격 / 좌표 적용'을 누른 뒤 저장하세요.
 [글꼴 전체를 얇게 만들기]
-왼쪽 '글꼴 전체 · 획 얇게 만들기'에서 강도를 입력하고 '전체 글자에 얇게 적용'을 누르세요.
+왼쪽 '형태 유지 · 전후 비교'를 누르면 채워진 글자의 원본과 얇게 만든 결과를 비교할 수 있습니다.
+강도를 입력하고 '비교 갱신'으로 확인한 뒤 '이 강도로 전체 글꼴 적용'을 누르세요.
+비교 창을 닫으면 미리보기는 문서에 반영되지 않습니다. 평평한 꼭대기나 둥근 형태를 각지게 바꾸지 않습니다.
 처음에는 0.5~1.0%를 권장합니다. 1%는 1000 UPM 기준 획 두께를 약 10 줄입니다.
 모든 글리프에 동일한 거리로 적용하며 글자 폭과 문자 매핑을 유지합니다.
 복합 글리프는 실제 표시 크기의 단순 윤곽으로 변환해 균일하게 처리합니다.
