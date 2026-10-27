@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.venv-win/
+
+.venv-desktop/
+.venv-build/
+build/
+dist/
+*.spec
