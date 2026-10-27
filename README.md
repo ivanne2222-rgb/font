@@ -45,7 +45,7 @@ Windows에서 `desktop/build_exe.bat`를 실행하면 `desktop/dist/TTFStudio.ex
 
 GitHub Actions의 `Build Windows TTF Studio` 워크플로는 데스크톱 코드가 main에 올라오면 자동으로 Windows EXE를 빌드합니다. 모델 테스트와 패키징된 EXE 실행 검사를 통과한 경우 무설치 ZIP과 SHA256을 저장소에 게시합니다. 수동 실행도 지원합니다.
 
-[Windows 빌드·검증 기록](https://github.com/ivanne2222-rgb/font/actions/runs/40437946287): 테스트 8개, EXE의 GUI 시작·윤곽 렌더링·점 선택과 드래그·이름/간격/좌표 수정·TTF 저장과 재로드를 통과했습니다. ZIP 안의 `build-verification.json`에도 실행 검사 결과를 포함합니다. 실제 Windows 10/11 사용자 PC별 호환성 전체를 검증한 것은 아닙니다.
+[Windows 빌드·검증 기록](https://github.com/ivanne2222-rgb/font/actions/runs/40450026346): 테스트 16개, EXE의 GUI 시작·윤곽 렌더링·점 선택과 드래그·이름/간격/좌표 수정·TTF 저장과 재로드·전체 획 얇게 만들기·전체 실행 취소를 통과했습니다. ZIP 안의 `build-verification.json`에도 실행 검사 결과를 포함합니다. 실제 Windows 10/11 사용자 PC별 호환성 전체를 검증한 것은 아닙니다.
 
 ## 개발·검증
 
